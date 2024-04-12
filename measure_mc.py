@@ -34,7 +34,7 @@ def measure_m_c_original(data):
     print('m: %g +/- %g (99.7%% conf)' % (m, merr*3))
     print('c: %g +/- %g (99.7%% conf)' % (shear[1], shear_err[1]*3))
 
-def measure_m_c(cat):
+def measure_m_c(cat, print_mean=False):
     
     """
     Z: g1=0.00, g2=0.00
@@ -70,6 +70,16 @@ def measure_m_c(cat):
     m2 = (2*np.mean(cat['B']['g2_noshear']) - 2*np.mean(cat['C']['g2_noshear']))/(np.sqrt(3) * dg * (R22_B + R22_C)) - 1
     c1 = (np.mean(cat['B']['g1_noshear']) + np.mean(cat['C']['g1_noshear']))/(R11_B + R11_C)
     
+    if print_mean:
+        print('Z1: ', np.mean(cat['Z']['g1_noshear'])/R11_Z)
+        print('Z2: ', np.mean(cat['Z']['g2_noshear'])/R22_Z)
+        print('A1: ', np.mean(cat['A']['g1_noshear'])/R11_A)
+        print('A2: ', np.mean(cat['A']['g2_noshear'])/R22_A)
+        print('B1: ', np.mean(cat['B']['g1_noshear'])/R11_B)
+        print('B2: ', np.mean(cat['B']['g2_noshear'])/R22_B)
+        print('C1: ', np.mean(cat['C']['g1_noshear'])/R11_C)
+        print('C2: ', np.mean(cat['C']['g2_noshear'])/R22_C)
+
     return m1,m2,c1,c2
 
 
@@ -123,7 +133,7 @@ def main(argv):
         mcal_concat_res[k] = np.concatenate(mcal_res[k])
 
     # Get mean m, c for all blocks.
-    m1,m2,c1,c2 = measure_m_c(mcal_concat_res) # shear_pair_data
+    m1,m2,c1,c2 = measure_m_c(mcal_concat_res, print_mean=True) # shear_pair_data
 
     # Let's get jackknife errors. 
     jk_mc = {'m1':[], 'm2':[], 'c1':[], 'c2':[]}
@@ -131,18 +141,22 @@ def main(argv):
         iby = int(row[-2:])
         start = iby * NBLOCKS
         end = (iby+1) * NBLOCKS
-            
-        Z = np.concatenate(mcal_res['Z'][start:end])
-        A = np.concatenate(mcal_res['A'][start:end])
-        B = np.concatenate(mcal_res['B'][start:end])
-        C = np.concatenate(mcal_res['C'][start:end])
+        
+        Z_ = mcal_res['Z'].copy(); del Z_[start:end]
+        Z = np.concatenate(Z_)
+        A_ = mcal_res['A'].copy(); del A_[start:end]
+        A = np.concatenate(A_)
+        B_ = mcal_res['A'].copy(); del B_[start:end]
+        B = np.concatenate(B_)
+        C_ = mcal_res['C'].copy(); del C_[start:end]
+        C = np.concatenate(C_)
         
         jk_res = {'Z':Z, 'A':A, 'B':B, 'C':C}
-        m1,m2,c1,c2 = measure_m_c(jk_res)
-        jk_mc['m1'].append(m1)
-        jk_mc['m2'].append(m2)
-        jk_mc['c1'].append(c1)
-        jk_mc['c2'].append(c2)
+        m1_jk,m2_jk,c1_jk,c2_jk = measure_m_c(jk_res)
+        jk_mc['m1'].append(m1_jk)
+        jk_mc['m2'].append(m2_jk)
+        jk_mc['c1'].append(c1_jk)
+        jk_mc['c2'].append(c2_jk)
 
     jk_cov = compute_jk_errors(jk_mc, NBLOCKS)
     num_obj = len(mcal_concat_res['Z'])
